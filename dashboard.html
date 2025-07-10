@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Oracle Query Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <meta http-equiv="refresh" content="60">
+</head>
+<body>
+    <h1>Oracle SQL Query Dashboard</h1>
+    <div id="charts"></div>
+    <script>
+        fetch("/data")
+        .then(res => res.json())
+        .then(data => {
+            let container = document.getElementById("charts");
+            container.innerHTML = "";
+
+            Object.keys(data).forEach(queryId => {
+                let result = data[queryId]['data'];
+                let desc = data[queryId]['desc'];
+                let times = result.map(r => r.time);
+                let counts = result.map(r => r.count);
+                let durations = result.map(r => r.duration);
+
+                let countTrace = {
+                    x: times,
+                    y: counts,
+                    type: 'scatter',
+                    name: 'Count',
+                    yaxis: 'y1'
+                };
+
+                let durationTrace = {
+                    x: times,
+                    y: durations,
+                    type: 'scatter',
+                    name: 'Execution Time (s)',
+                    yaxis: 'y2'
+                };
+
+                let chartId = queryId + '_chart';
+                let div = document.createElement('div');
+                div.id = chartId;
+                div.style.height = '400px';
+                container.appendChild(div);
+
+                let layout = {
+                    title: `${queryId}: ${desc}`,
+                    yaxis: { title: 'Count', side: 'left' },
+                    yaxis2: {
+                        title: 'Execution Time (s)',
+                        overlaying: 'y',
+                        side: 'right'
+                    },
+                    xaxis: { title: 'Timestamp' }
+                };
+
+                Plotly.newPlot(chartId, [countTrace, durationTrace], layout);
+            });
+        });
+    </script>
+</body>
+</html>
