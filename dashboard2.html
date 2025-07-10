@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Oracle SQL Query Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.2/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+    <h1>Oracle SQL Query Dashboard</h1>
+
+    <label for="from">From:</label>
+    <input type="text" id="from" placeholder="YYYY-MM-DD HH:MM:SS">
+    <label for="to">To:</label>
+    <input type="text" id="to" placeholder="YYYY-MM-DD HH:MM:SS">
+    <button onclick="loadData()">Update Dashboard</button>
+
+    <div id="charts"></div>
+
+    <script>
+        flatpickr("#from", { enableTime: true, dateFormat: "Y-m-d H:i:S" });
+        flatpickr("#to", { enableTime: true, dateFormat: "Y-m-d H:i:S" });
+
+        function loadData() {
+            const from = document.getElementById("from").value;
+            const to = document.getElementById("to").value;
+            let query = "/data";
+            if (from || to) {
+                query += "?";
+                if (from) query += `from=${encodeURIComponent(from)}&`;
+                if (to) query += `to=${encodeURIComponent(to)}`;
+            }
+
+            fetch(query)
+            .then(res => res.json())
+            .then(data => {
+                const container = document.getElementById("charts");
+                container.innerHTML = "";
+
+                Object.keys(data).forEach(queryId => {
+                    const queryData = data[queryId]['data'];
+                    const desc = data[queryId]['desc'];
+
+                    if (!queryData.length) return;
+
+                    // Extract all unique keys from the first 'records' entry
+                    const fieldNames = new Set();
+                    queryData.forEach(d => {
+                        d.records.forEach(rec => {
+                            Object.keys(rec).forEach(key => fieldNames.add(key));
+                        });
+                    });
+
+                    const times = queryData.map(d => d.time);
+                    const duration = queryData.map(d => d.duration);
+
+                    let chartId = `${queryId}_chart`;
+                    const div = document.createElement('div');
+                    div.id = chartId;
+                    div.style.height = '450px';
+                    container.appendChild(div);
+
+                    const traces = [];
+
+                    fieldNames.forEach(field => {
+                        const y = queryData.map(d => {
+                            const rec = d.records[0];
+                            return rec && field in rec ? rec[field] : null;
+                        });
+                        traces.push({
+                            x: times,
+                            y: y,
+                            type: 'scatter',
+                            name: field,
+                            yaxis: 'y1'
+                        });
+                    });
+
+                    traces.push({
+                        x: times,
+                        y: duration,
+                        type: 'scatter',
+                        name: 'Exec Time (s)',
+                        yaxis: 'y2',
+                        line: { dash: 'dot' }
+                    });
+
+                    const layout = {
+                        title: `${queryId}: ${desc}`,
+                        yaxis: { title: 'Query Values', side: 'left' },
+                        yaxis2: {
+                            title: 'Execution Time (s)',
+                            overlaying: 'y',
+                            side: 'right'
+                        },
+                        xaxis: { title: 'Timestamp' }
+                    };
+
+                    Plotly.newPlot(chartId, traces, layout);
+                });
+            });
+        }
+
+        loadData();
+        setInterval(loadData, 60000);  // refresh every minute
+    </script>
+</body>
+</html>
