@@ -80,7 +80,6 @@ async def get_pool(dsn, user, password, maxsize=5, logger=None):
     Ensures maxsize >= minsize and gracefully falls back if pool creation fails.
     """
     try:
-        # Ensure maxsize is at least 1 and >= minsize
         minsize = 1
         if maxsize < minsize:
             if logger:
@@ -101,27 +100,46 @@ async def get_pool(dsn, user, password, maxsize=5, logger=None):
 
     except Exception as e:
         if logger:
-            logger.error(f"Pool creation failed: {e}. Falling back to direct connection mode.")
-        # fallback: return a dummy pool-like object
+            logger.error(f"Pool creation failed: {e}. Falling back to direct async connection mode.")
+
         class DummyPool:
+            """
+            Fallback class when aioodbc pool creation fails.
+            Provides async acquire() and release() compatible with 'async with'.
+            """
+
+            def __init__(self, dsn, user, password):
+                self.dsn = dsn
+                self.user = user
+                self.password = password
+
+            class _ConnectionWrapper:
+                def __init__(self, conn):
+                    self.conn = conn
+                async def __aenter__(self):
+                    return self.conn
+                async def __aexit__(self, exc_type, exc_val, exc_tb):
+                    await self.conn.close()
+
             async def acquire(self):
-                return await aioodbc.connect(dsn=dsn, user=user, password=password, autocommit=True)
-            async def release(self, conn):
-                await conn.close()
-        return DummyPool()
+                conn = await aioodbc.connect(dsn=self.dsn, user=self.user, password=self.password, autocommit=True)
+                return self._ConnectionWrapper(conn)
+
+        return DummyPool(dsn, user, password)
+
 
 
 
 async def fetch_active_items(pool, active_item_limit=0, logger=None):
     """
     Fetch active items from item_master (synchronous small result).
-    We'll use a pooled connection for this small query.
+    Works with both aioodbc.Pool and DummyPool.
     """
-    async with pool.acquire() as conn:
+    async with (await pool.acquire()) as conn:
         async with conn.cursor() as cur:
             sql = "SELECT item FROM item_master WHERE status = 'A'"
             if active_item_limit and active_item_limit > 0:
-                sql = sql + f" FETCH FIRST {active_item_limit} ROWS ONLY"
+                sql += f" FETCH FIRST {active_item_limit} ROWS ONLY"
             await cur.execute(sql)
             rows = await cur.fetchall()
             items = [r[0] for r in rows]
