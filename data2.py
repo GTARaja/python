@@ -74,9 +74,42 @@ def load_config(path="config.yaml"):
 # ----------------------------
 # Async DB helpers (aioodbc)
 # ----------------------------
-async def get_pool(dsn, user, password, maxsize=5):
-    # Create a connection pool for light concurrent tasks (not used for streaming cursor)
-    return await aioodbc.create_pool(dsn=dsn, user=user, password=password, autocommit=True, maxsize=maxsize)
+async def get_pool(dsn, user, password, maxsize=5, logger=None):
+    """
+    Create a connection pool for small concurrent queries.
+    Ensures maxsize >= minsize and gracefully falls back if pool creation fails.
+    """
+    try:
+        # Ensure maxsize is at least 1 and >= minsize
+        minsize = 1
+        if maxsize < minsize:
+            if logger:
+                logger.warning(f"Invalid pool size (maxsize={maxsize}), adjusting to 1")
+            maxsize = 1
+
+        pool = await aioodbc.create_pool(
+            dsn=dsn,
+            user=user,
+            password=password,
+            autocommit=True,
+            minsize=minsize,
+            maxsize=maxsize,
+        )
+        if logger:
+            logger.info(f"Connection pool created successfully (minsize={minsize}, maxsize={maxsize})")
+        return pool
+
+    except Exception as e:
+        if logger:
+            logger.error(f"Pool creation failed: {e}. Falling back to direct connection mode.")
+        # fallback: return a dummy pool-like object
+        class DummyPool:
+            async def acquire(self):
+                return await aioodbc.connect(dsn=dsn, user=user, password=password, autocommit=True)
+            async def release(self, conn):
+                await conn.close()
+        return DummyPool()
+
 
 
 async def fetch_active_items(pool, active_item_limit=0, logger=None):
