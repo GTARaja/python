@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 # =============================
-# CONFIGURATION SECTION
+# CONFIGURATION
 # =============================
 
 ORACLE_CONFIG = {
@@ -58,16 +58,23 @@ JOIN s2 ON im.bl = s2.loc
 """
 
 # =============================
-# EXECUTION AND LOGGING
+# LOGGING SETUP
 # =============================
 
+timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+log_file = os.path.join(LOG_DIR, f"oracle_query_{timestamp}.log")
+
 def log_message(message):
-    """Write logs with timestamps."""
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    log_file = os.path.join(LOG_DIR, f"oracle_query_{timestamp}.log")
+    """Write logs with real-time timestamps."""
+    current_time = datetime.now().strftime("[%H:%M:%S]")
+    line = f"{current_time} {message}"
+    print(line)
     with open(log_file, "a", encoding="utf-8") as f:
-        f.write(message + "\n")
-    print(message)
+        f.write(line + "\n")
+
+# =============================
+# MAIN EXECUTION
+# =============================
 
 def run_query():
     connection = None
@@ -76,25 +83,39 @@ def run_query():
         connection = oracledb.connect(**ORACLE_CONFIG)
         cursor = connection.cursor()
 
-        # Force plan capture
+        # Force parallel mode for this session
+        cursor.execute("ALTER SESSION ENABLE PARALLEL QUERY")
+        cursor.execute("ALTER SESSION FORCE PARALLEL QUERY PARALLEL 8")
+
+        # Prepare and explain plan
+        log_message("🧠 Generating execution plan...")
         cursor.execute("EXPLAIN PLAN FOR " + QUERY)
 
-        log_message("🚀 Executing query...")
-        start_time = time.time()
+        log_message("🚀 Executing main query...")
+        start_time = time.perf_counter()
+
         cursor.execute(QUERY)
         results = cursor.fetchall()
-        duration = time.time() - start_time
 
-        log_message(f"✅ Query executed successfully in {duration:.2f} seconds.")
+        end_time = time.perf_counter()
+        elapsed = end_time - start_time
+
+        log_message(f"✅ Query executed successfully.")
         log_message(f"📊 Rows fetched: {len(results)}")
+        log_message(f"⏱️ Execution time: {elapsed:.2f} seconds")
 
-        # Capture and display execution plan
-        cursor.execute("SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY())")
-        plan = "\n".join(row[0] for row in cursor.fetchall())
-        log_message("🧠 Execution Plan:\n" + plan)
+        # Capture execution plan
+        cursor.execute("SELECT PLAN_TABLE_OUTPUT FROM TABLE(DBMS_XPLAN.DISPLAY())")
+        plan_lines = [row[0] for row in cursor.fetchall()]
+        plan_text = "\n".join(plan_lines)
+
+        log_message("🧩 Execution Plan:")
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(plan_text + "\n")
 
     except Exception as e:
         log_message(f"❌ Error: {str(e)}")
+
     finally:
         if connection:
             connection.close()
