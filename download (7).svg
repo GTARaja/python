@@ -1,0 +1,183 @@
+<!--?xml version="1.0" encoding="utf-8"?-->
+<!-- qtest_microbounce.svg
+     All tweaks included:
+     - Glow/neon electrons
+     - Varied orbit speeds/directions
+     - Stylized 'Q' glyph behind nucleus (probe-like)
+     - Small subtitle label under the badge
+     - Micro-bounce for whole logo
+     Lightweight filters and CSS-only animations for smoothness.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1150" viewBox="0 0 1024 1150" preserveAspectRatio="xMidYMid meet">
+
+  <defs>
+    <!-- badge gradient -->
+    <linearGradient id="badgeGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3C82FF"></stop>
+      <stop offset="1" stop-color="#1650B8"></stop>
+    </linearGradient>
+
+    <!-- subtle cheap shadow -->
+    <filter id="cheapShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feOffset dx="0" dy="12" result="off"></feOffset>
+      <feGaussianBlur in="off" stdDeviation="10" result="blur"></feGaussianBlur>
+      <feMerge>
+        <feMergeNode in="blur"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+
+    <!-- small glow blur for electrons (lightweight) -->
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="coloredBlur"></feGaussianBlur>
+      <feMerge>
+        <feMergeNode in="coloredBlur"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+
+    <!-- radial gradients for neon dots -->
+    <radialGradient id="dotGradA" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="1"></stop>
+      <stop offset="1" stop-color="#80C7FF" stop-opacity="0.9"></stop>
+    </radialGradient>
+    <radialGradient id="dotGradB" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="1"></stop>
+      <stop offset="1" stop-color="#B28CFF" stop-opacity="0.9"></stop>
+    </radialGradient>
+    <radialGradient id="dotGradC" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="1"></stop>
+      <stop offset="1" stop-color="#9EFFB8" stop-opacity="0.9"></stop>
+    </radialGradient>
+
+    <style>
+      /* Master micro-bounce (gentle) */
+      @keyframes bounce {
+        0%   { transform: translateY(0px) scale(1); }
+        20%  { transform: translateY(-18px) scale(1.012); }
+        40%  { transform: translateY(0px) scale(1); }
+        60%  { transform: translateY(-10px) scale(1.006); }
+        80%  { transform: translateY(0px) scale(1); }
+        100% { transform: translateY(0px) scale(1); }
+      }
+
+      .loop {
+        transform-origin: 512px 410px;
+        animation: bounce 3200ms ease-in-out infinite;
+        will-change: transform;
+      }
+
+      /* Ring pulse (subtle) */
+      @keyframes ringPulse {
+        0%   { opacity: 0.36; transform: scale(0.92); }
+        50%  { opacity: 0.12; transform: scale(1.08); }
+        100% { opacity: 0.36; transform: scale(0.92); }
+      }
+
+      /* Orbits rotate: varied speeds &amp; directions */
+      @keyframes orbitCW { from{ transform: rotate(0deg); } to { transform: rotate(360deg);} }
+      @keyframes orbitCCW { from{ transform: rotate(0deg); } to { transform: rotate(-360deg);} }
+
+      /* small pulsing for electrons */
+      @keyframes dotPulse {
+        0%   { transform: scale(0.88); opacity: 0.85; }
+        50%  { transform: scale(1.12); opacity: 1; }
+        100% { transform: scale(0.88); opacity: 0.85; }
+      }
+
+      /* stylized Q subtle rotate */
+      @keyframes qTwist {
+        0% { transform: rotate(-6deg) scale(1); }
+        50% { transform: rotate(6deg) scale(1.01); }
+        100% { transform: rotate(-6deg) scale(1); }
+      }
+
+      /* styles / assignments */
+      .ring { stroke: rgba(255,255,255,0.18); stroke-width:6; fill:none; animation: ringPulse 1800ms ease-in-out infinite; transform-origin: 512px 410px; will-change: transform; }
+      .orbit { transform-origin: 512px 410px; will-change: transform; }
+      .orbit-a { animation: orbitCW 6200ms linear infinite; }
+      .orbit-b { animation: orbitCCW 4600ms linear infinite; }
+      .orbit-c { animation: orbitCW 3600ms linear infinite; }
+
+      .electron-a { fill: url(#dotGradA); filter: url(#glow); animation: dotPulse 1200ms ease-in-out infinite; transform-origin: center; }
+      .electron-b { fill: url(#dotGradB); filter: url(#glow); animation: dotPulse 1400ms ease-in-out infinite; transform-origin: center; }
+      .electron-c { fill: url(#dotGradC); filter: url(#glow); animation: dotPulse 1000ms ease-in-out infinite; transform-origin: center; }
+
+      .nucleus { fill: white; filter: none; }
+
+      .qglyph { fill:none; stroke: rgba(255,255,255,0.65); stroke-width:6; stroke-linecap:round; stroke-linejoin:round; opacity:0.9; transform-origin: 512px 410px; animation: qTwist 4800ms ease-in-out infinite; }
+
+      .label-main { font-family: "Segoe UI", "Roboto", Arial, sans-serif; font-size: 74px; font-weight:700; fill: white; text-anchor: middle; }
+      .label-sub  { font-family: "Segoe UI", "Roboto", Arial, sans-serif; font-size: 22px; fill: rgba(255,255,255,0.88); text-anchor: middle; opacity:0.95; }
+
+    </style>
+  </defs>
+
+  <!-- transparent background -->
+  <rect x="0" y="0" width="1024" height="1150" fill="transparent"></rect>
+
+  <!-- GROUP: entire logo (bounces together) -->
+  <g class="loop">
+
+    <!-- Badge (center x = 512) with shadow -->
+    <g filter="url(#cheapShadow)">
+      <rect x="212" y="110" width="600" height="600" rx="120" ry="120" fill="url(#badgeGrad)"></rect>
+    </g>
+
+    <!-- emblem group slightly up to make room for subtitle under badge -->
+    <g transform="translate(0,-40)" aria-label="quantum emblem">
+
+      <!-- Stylized Q glyph behind nucleus (circle + tail) -->
+      <g transform="translate(512,410)">
+        <!-- Q circle -->
+        <path class="qglyph" d="M -64,0 A 64,64 0 1 1 63.99,0"></path>
+        <!-- tail / probe stroke -->
+        <path class="qglyph" d="M 20,20 L 38,44" stroke-linecap="round"></path>
+      </g>
+
+      <!-- pulsing ring -->
+      <g transform="translate(512,410)">
+        <circle class="ring" cx="0" cy="0" r="128"></circle>
+      </g>
+
+      <!-- ORBIT A (big) -->
+      <g class="orbit orbit-a" transform="translate(512,410)" aria-label="orbit-a">
+        <ellipse cx="0" cy="0" rx="140" ry="70" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4"></ellipse>
+        <g transform="translate(140,0)">
+          <circle class="electron-a" cx="0" cy="0" r="11"></circle>
+        </g>
+      </g>
+
+      <!-- ORBIT B (medium) -->
+      <g class="orbit orbit-b" transform="translate(512,410)" aria-label="orbit-b">
+        <ellipse cx="0" cy="0" rx="96" ry="48" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"></ellipse>
+        <g transform="translate(-96,0)">
+          <circle class="electron-b" cx="0" cy="0" r="9"></circle>
+        </g>
+      </g>
+
+      <!-- ORBIT C (small) -->
+      <g class="orbit orbit-c" transform="translate(512,410)" aria-label="orbit-c">
+        <ellipse cx="0" cy="0" rx="60" ry="30" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="2"></ellipse>
+        <g transform="translate(0,-60)">
+          <circle class="electron-c" cx="0" cy="0" r="8"></circle>
+        </g>
+      </g>
+
+      <!-- central nucleus -->
+      <g transform="translate(512,410)">
+        <circle class="nucleus" cx="0" cy="0" r="16"></circle>
+        <!-- small inner glow -->
+        <circle cx="0" cy="0" r="28" fill="rgba(255,255,255,0.04)"></circle>
+      </g>
+
+    </g>
+
+    <!-- MAIN LABEL inside the badge (white, bold) -->
+    <text x="512" y="640" class="label-main">Q-Test</text>
+
+    <!-- SUBTITLE outside/under badge (small, semi-transparent) -->
+    <text x="512" y="770" class="label-sub">Quality • Futuristic • Automated</text>
+
+  </g>
+</svg>
