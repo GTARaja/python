@@ -1,0 +1,139 @@
+<!--?xml version="1.0" encoding="utf-8"?-->
+<!-- qtest_microbounce.svg
+     Micro-bounce loop with requestAnimationFrame-driven tick draw (3s).
+     Text inside badge changed to "Q-Test" (white).
+     Transparent, centered, vector; ideal for embedding inline in QWebEngineView.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid meet">
+
+  <defs>
+    <linearGradient id="badgeGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3C82FF"></stop>
+      <stop offset="1" stop-color="#1650B8"></stop>
+    </linearGradient>
+
+    <!-- cheaper shadow for performance -->
+    <filter id="cheapShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feOffset dx="0" dy="10" result="off"></feOffset>
+      <feGaussianBlur in="off" stdDeviation="8" result="blur"></feGaussianBlur>
+      <feBlend in="SourceGraphic" in2="blur" mode="normal"></feBlend>
+    </filter>
+
+    <style>
+      /* Bounce loop (3200ms) */
+      @keyframes bounce {
+        0%   { transform: translateY(0px) scale(1); }
+        25%  { transform: translateY(-20px) scale(1.014); }
+        50%  { transform: translateY(0px)  scale(1); }
+        75%  { transform: translateY(-10px) scale(1.007); }
+        100% { transform: translateY(0px)  scale(1); }
+      }
+
+      .loop {
+        transform-origin: 512px 410px;
+        animation: bounce 3200ms ease-in-out infinite;
+        will-change: transform;
+      }
+
+      .check-outline {
+        stroke: rgba(0, 0, 0, 0.28);
+        stroke-width: 56;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+      }
+
+      .check {
+        stroke: white;
+        stroke-width: 40;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+        /* dash offset will be controlled by JS */
+      }
+
+      .label {
+        font-family: "Segoe UI", "Roboto", Arial, sans-serif;
+        font-size: 74px;
+        font-weight: 700;
+        fill: white;
+        text-anchor: middle;
+        transform-origin: 512px 660px;
+      }
+
+    </style>
+  </defs>
+
+  <!-- transparent background -->
+  <rect x="0" y="0" width="1024" height="1024" fill="transparent"></rect>
+
+  <g id="master" class="loop">
+    <!-- badge (centered) -->
+    <g filter="url(#cheapShadow)">
+      <rect x="212" y="110" width="600" height="600" rx="120" ry="120" fill="url(#badgeGrad)"></rect>
+    </g>
+
+    <!-- checkmark group moved up slightly to make space for text -->
+    <g id="checkGroup" transform="translate(0,-40)">
+      <path id="checkOutline" class="check-outline" d="M362 430 L482 540 L682 320"></path>
+      <path id="checkPath" class="check" d="M362 430 L482 540 L682 320"></path>
+    </g>
+
+    <!-- Q-Test text INSIDE the badge, white -->
+    <text id="label" x="512" y="660" class="label">Q-Test</text>
+  </g>
+
+  <!-- Inline JS: rAF-driven tick draw over 3000ms each loop -->
+  <script>
+    (function() {
+      const path = document.getElementById('checkPath');
+      if (!path) return;
+      const totalLength = path.getTotalLength();
+      path.style.strokeDasharray = totalLength;
+      path.style.strokeDashoffset = totalLength;
+      path.style.opacity = 0;
+
+      const loopDuration = 3200; // full loop length
+      const drawDuration = 3000; // tick draw duration (ms)
+      const drawDelay = 100;     // delay before draw starts (ms)
+
+      let loopStart = performance.now();
+
+      function tick(now) {
+        const elapsed = now - loopStart;
+        const inLoop = elapsed % loopDuration;
+
+        let drawProgress = 0;
+        if (inLoop &gt;= drawDelay) {
+          const d = Math.min(drawDuration, loopDuration - drawDelay);
+          drawProgress = (inLoop - drawDelay) / d;
+          drawProgress = Math.max(0, Math.min(1, drawProgress));
+        } else {
+          drawProgress = 0;
+        }
+
+        const dash = totalLength * (1 - drawProgress);
+        path.style.strokeDashoffset = dash;
+
+        // tiny fade at start for smoothness
+        if (drawProgress &gt; 0 &amp;&amp; drawProgress &lt; 0.02) {
+          path.style.opacity = Math.min(1, drawProgress * 50);
+        } else if (drawProgress === 0) {
+          path.style.opacity = 0;
+        } else {
+          path.style.opacity = 1;
+        }
+
+        requestAnimationFrame(tick);
+      }
+
+      requestAnimationFrame(function(t){ loopStart = t; requestAnimationFrame(tick); });
+
+      // performance hints
+      document.getElementById('master').style.willChange = 'transform';
+      path.style.pointerEvents = 'none';
+      document.getElementById('checkOutline').style.pointerEvents = 'none';
+    })();
+  </script>
+
+</svg>
