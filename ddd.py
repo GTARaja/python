@@ -89,4 +89,137 @@ class TeamsLikeSplash(QWidget):
         try:
             # QWebEnginePage.setBackgroundColor exists on PyQt6 WebEnginePage
             self.view.page().setBackgroundColor(QColor(0, 0, 0, 0))
-        except Except
+        except Exception:
+            pass
+
+        base = QUrl.fromLocalFile(str(svg_path.resolve().parent) + "/")
+        self.view.setHtml(html, baseUrl=base)
+        self.view.setFixedSize(self.card_size, self.card_size)
+        layout.addWidget(self.view)
+
+        # Opacity effect for fade in/out
+        self.opacity_effect = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self.opacity_effect)
+        self.opacity_effect.setOpacity(0.0)
+
+        # animation placeholders
+        self._geom_group = None
+        self._fade_in = None
+        self._fade_out = None
+
+    def show_splash(self):
+        screen = QApplication.primaryScreen()
+        geom = screen.availableGeometry() if screen else QRect(0, 0, 1280, 800)
+
+        total_w = self.card_size
+        total_h = self.card_size
+        final_x = geom.x() + (geom.width() - total_w) // 2
+        final_y = geom.y() + (geom.height() - total_h) // 2 - 10
+
+        start_w = max(24, int(total_w * 0.16))
+        start_h = max(24, int(total_h * 0.16))
+        start_x = final_x + (total_w - start_w) // 2
+        start_y = final_y + (total_h - start_h) // 2
+
+        overshoot_factor = 1.14
+        overs_w = int(total_w * overshoot_factor)
+        overs_h = int(total_h * overshoot_factor)
+        overs_x = final_x - (overs_w - total_w) // 2
+        overs_y = final_y - (overs_h - total_h) // 2
+
+        # Initially set geometry to final so widget has that rect while animations run
+        self.setGeometry(final_x, final_y, total_w, total_h)
+        self.card.move(0, 0)
+
+        # geometry "pop" animation (grow from small -> overshoot -> settle)
+        self._geom_group = QSequentialAnimationGroup(self)
+
+        anim1 = QPropertyAnimation(self, b"geometry")
+        anim1.setDuration(420)
+        anim1.setStartValue(QRect(start_x, start_y, start_w, start_h))
+        anim1.setEndValue(QRect(overs_x, overs_y, overs_w, overs_h))
+        anim1.setEasingCurve(QEasingCurve.Type.OutBack)
+
+        anim2 = QPropertyAnimation(self, b"geometry")
+        anim2.setDuration(220)
+        anim2.setStartValue(QRect(overs_x, overs_y, overs_w, overs_h))
+        anim2.setEndValue(QRect(final_x, final_y, total_w, total_h))
+        anim2.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        self._geom_group.addAnimation(anim1)
+        self._geom_group.addAnimation(anim2)
+
+        # fade-in
+        self._fade_in = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self._fade_in.setDuration(320)
+        self._fade_in.setStartValue(0.0)
+        self._fade_in.setEndValue(1.0)
+        self._fade_in.setEasingCurve(QEasingCurve.Type.InOutCubic)
+
+        # connect finishing to starting the hold -> fade out
+        self._geom_group.finished.connect(self._on_geom_finished)
+
+        # start animations
+        self._fade_in.start()
+        self._geom_group.start()
+        self.show()
+
+    def _on_geom_finished(self):
+        QTimer.singleShot(self.hold_ms, self._start_fade_out)
+
+    def _start_fade_out(self):
+        self._fade_out = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self._fade_out.setDuration(360)
+        self._fade_out.setStartValue(1.0)
+        self._fade_out.setEndValue(0.0)
+        self._fade_out.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        self._fade_out.finished.connect(self._on_faded)
+        self._fade_out.start()
+
+    def _on_faded(self):
+        self.close()
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Valid8r — Main")
+        self.resize(960, 600)
+        lbl = QLabel("Valid8r — Ready", self)
+        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        f = lbl.font()
+        f.setPointSize(16)
+        lbl.setFont(f)
+        self.setCentralWidget(lbl)
+
+
+def main():
+    # High DPI hints (PyQt6 uses Qt.ApplicationAttribute)
+    try:
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
+        QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
+    except Exception:
+        pass
+
+    app = QApplication(sys.argv)
+
+    svg_file = Path(__file__).parent / "valid8r_microbounceslow.svg"
+    if not svg_file.exists():
+        print("SVG not found:", svg_file.resolve())
+        sys.exit(1)
+
+    splash = TeamsLikeSplash(svg_file, size_px=380, hold_ms=3400)
+    mainw = MainWindow()
+
+    # total duration approx: pop(420+220)+fade(320)+hold+fadeout(360)
+    total = 420 + 220 + 320 + splash.hold_ms + 360
+    splash.show_splash()
+
+    # Show main window after splash finishes (approximate)
+    QTimer.singleShot(total, lambda: (mainw.show(), mainw.raise_(), mainw.activateWindow()))
+
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
